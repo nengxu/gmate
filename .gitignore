@@ -5,3 +5,6 @@ build
 test*.p*
 .DS_Store
 
+# plugin specific data
+plugins3/favorites/data/favorites.xml
+
