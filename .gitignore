@@ -7,4 +7,5 @@ test*.p*
 
 # plugin specific data
 plugins3/favorites/data/favorites.xml
+plugins3/advancedfind/config.xml
 
