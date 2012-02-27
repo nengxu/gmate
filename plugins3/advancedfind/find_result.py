@@ -1,12 +1,12 @@
 # -*- encoding:utf-8 -*-
 
 
-# find_result.py
+# find_result.py is part of advancedfind-gedit.
 #
 #
-# Copyright 2010 swatch
+# Copyright 2010-2012 swatch
 #
-# This program is free software; you can redistribute it and/or modify
+# advancedfind-gedit is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
@@ -188,7 +188,11 @@ class FindResultView(Gtk.HBox):
 		
 		self.show_buttons()
 
-		format_file = os.path.join(os.path.dirname(__file__), "result_format.xml")
+		user_formatfile = os.path.join(os.path.expanduser('~/.local/share/gedit/plugins/' + APP_NAME), 'result_format.xml')
+		if os.path.exists(user_formatfile):
+			format_file = user_formatfile
+		else:
+			format_file = os.path.join(os.path.dirname(__file__), "result_format.xml")
 		self.result_format = config_manager.ConfigManager(format_file).load_configure('result_format')
 		
 	def do_events(self):
@@ -224,8 +228,6 @@ class FindResultView(Gtk.HBox):
 		
 		parent_it = model.iter_parent(it)
 		if parent_it:
-			#uri = urllib.quote(model.get_value(parent_it, 6).encode('utf-8')).replace('%3A//', '://')
-			#uri = urllib.quote(model.get_value(parent_it, 6)).replace('%3A//', '://')
 			uri = model.get_value(parent_it, 6)
 			tab = model.get_value(parent_it, 3)
 		else:
@@ -240,8 +242,8 @@ class FindResultView(Gtk.HBox):
 			
 		# Still nothing? Open the file then
 		if not tab:
-			#tab = self._window.create_tab_from_uri(uri, None, line_num, False, False)
-			if not uri.startswith('smb://'):
+			m = re.search('[a-zA-Z0-9]+\:\/\/.+', uri)
+			if m == None:
 				tab = self._window.create_tab_from_location(Gio.file_new_for_uri('file://' + uri), None, line_num, 0, False, False)
 			else:
 				tab = self._window.create_tab_from_location(Gio.file_new_for_uri(uri), None, line_num, 0, False, False)
