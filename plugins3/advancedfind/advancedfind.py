@@ -79,11 +79,15 @@ class AdvancedFindWindowHelper:
 		self.find_ui = None
 		self.find_history = []
 		self.replace_history = []
-		self.file_type_history = []
-		self.file_path_history = []
+		self.filter_history = []
+		self.path_history = []
+		self.find_bookmarks = []
+		self.replace_bookmarks = []
+		self.filter_bookmarks = []
+		self.path_bookmarks = []
 		self.current_search_pattern = ""
 		self.current_replace_text = ""
-		#self.current_file_pattern = ""
+		self.current_file_pattern = "*"
 		#self.current_path = ""
 		self.forwardFlg = True
 		self.scopeFlg = 0
@@ -98,19 +102,17 @@ class AdvancedFindWindowHelper:
 		self.result_highlight_tag.set_property('style', pango.STYLE_ITALIC)
 		#'''
 		
-		user_configfile = os.path.join(os.path.expanduser('~/.local/share/gedit/plugins/' + APP_NAME), 'config.xml')
+		user_configfile = os.path.join(os.path.expanduser('~/.local/share/gedit/plugins/' + APP_NAME + '/config'), 'config.xml')
 		if os.path.exists(user_configfile):
 			configfile = user_configfile
 		else:
-			configfile = os.path.join(os.path.dirname(__file__), "config.xml")
+			configfile = os.path.join(os.path.dirname(__file__), "/config/config.xml")
 		self.config_manager = config_manager.ConfigManager(configfile)
 		self.find_options = self.config_manager.load_configure('FindOption')
 		self.config_manager.to_bool(self.find_options)
 		
 		self.find_dlg_setting = self.config_manager.load_configure('FindGUI')
-		#self.config_manager.to_bool(self.find_dlg_setting)
-		self.config_manager.boolean(self.find_dlg_setting['OPTIONS_EXPANDED'])
-		self.config_manager.boolean(self.find_dlg_setting['PATH_EXPANDED'])
+		self.config_manager.to_bool(self.find_dlg_setting)
 
 		self.shortcuts = self.config_manager.load_configure('Shortcut')
 		self.result_highlight = self.config_manager.load_configure('ResultDisplay')
@@ -118,10 +120,20 @@ class AdvancedFindWindowHelper:
 		self.result_gui_settings = self.config_manager.load_configure('ResultGUI')
 		self.config_manager.to_bool(self.result_gui_settings)
 		
-		self.find_history = self.config_manager.load_list('FindHistory')
-		self.replace_history = self.config_manager.load_list('ReplaceHistory')
-		self.file_type_history = self.config_manager.load_list('FilterHistory')
-		self.file_path_history = self.config_manager.load_list('PathHistory')
+		user_patterns = os.path.join(os.path.expanduser('~/.local/share/gedit/plugins/' + APP_NAME + '/config'), 'patterns.xml')
+		if os.path.exists(user_patterns):
+			patternsfile = user_patterns
+		else:
+			patternsfile = os.path.join(os.path.dirname(__file__), "/config/patterns.xml")
+		self.patterns_manager = config_manager.ConfigManager(patternsfile)
+		self.find_history = self.patterns_manager.load_list('FindHistory')
+		self.replace_history = self.patterns_manager.load_list('ReplaceHistory')
+		self.filter_history = self.patterns_manager.load_list('FilterHistory')
+		self.path_history = self.patterns_manager.load_list('PathHistory')
+		self.find_bookmarks = self.patterns_manager.load_list('FindBookmark')
+		self.replace_bookmarks = self.patterns_manager.load_list('ReplaceBookmark')
+		self.filter_bookmarks = self.patterns_manager.load_list('FilterBookmark')
+		self.path_bookmarks = self.patterns_manager.load_list('PathBookmark')
 
 		self._results_view = FindResultView(window, self.result_gui_settings)
 		icon = Gtk.Image.new_from_stock(Gtk.STOCK_FIND_AND_REPLACE, Gtk.IconSize.MENU)
@@ -146,19 +158,34 @@ class AdvancedFindWindowHelper:
 		self.config_manager.update_configure('ResultDisplay', self.result_highlight)
 		self.result_gui_settings.update(self._results_view.get_show_button_option())
 		self.config_manager.update_configure('ResultGUI', self.result_gui_settings)
-		self.config_manager.update_list('FindHistory', self.find_history)
-		self.config_manager.update_list('ReplaceHistory', self.replace_history)
-		self.config_manager.update_list('FilterHistory', self.file_type_history)
-		self.config_manager.update_list('PathHistory', self.file_path_history)
 		self.config_manager.update_config_file(self.config_manager.config_file)
+		
+		if not self.find_dlg_setting['KEEP_HISTORY']:
+			self.find_history = []
+			self.replace_history = []
+			self.filter_history = []
+			self.path_history = []
+		self.patterns_manager.update_list('FindHistory', self.find_history)
+		self.patterns_manager.update_list('ReplaceHistory', self.replace_history)
+		self.patterns_manager.update_list('FilterHistory', self.filter_history)
+		self.patterns_manager.update_list('PathHistory', self.path_history)
+		self.patterns_manager.update_list('FindBookmark', self.find_bookmarks)
+		self.patterns_manager.update_list('ReplaceBookmark', self.replace_bookmarks)
+		self.patterns_manager.update_list('FilterBookmark', self.filter_bookmarks)
+		self.patterns_manager.update_list('PathBookmark', self.path_bookmarks)
+		self.patterns_manager.update_config_file(self.patterns_manager.config_file)
 
 		self._window = None
 		self._plugin = None
 		self.find_ui = None
 		self.find_history = None
 		self.replace_history = None
-		self.file_type_history = None
-		self.file_path_history = None
+		self.filter_history = None
+		self.path_history = None
+		self.find_bookmarks = None
+		self.replace_bookmarks = None
+		self.filter_bookmarks = None
+		self.path_bookmarks = None
 		self._results_view = None
 		
 		'''
@@ -238,12 +265,13 @@ class AdvancedFindWindowHelper:
 		if self.current_replace_text != "":
 			self.find_ui.replaceTextComboboxtext.get_child().set_text(self.current_replace_text)
 
-		'''	
+
 		if self.current_file_pattern != "":
-			self.find_ui.filterComboboxentry.child.set_text(self.current_file_pattern)
-			
+			self.find_ui.filterComboboxtext.get_child().set_text(self.current_file_pattern)
+
+		'''	
 		if self.current_path != "":
-			self.find_ui.pathComboboxentry.child.set_text(self.current_path)
+			self.find_ui.pathComboboxentrytext.get_child().set_text(self.current_path)
 		#'''
 
 	def create_regex(self, pattern, find_options):
@@ -421,7 +449,7 @@ class AdvancedFindWindowHelper:
 					tab = Gedit.Tab.get_from_document(doc)
 					uri = urllib.unquote(doc.get_uri_for_display())
 				tree_it = self._results_view.append_find_result_filename(parent_it, doc.get_short_name_for_display(), tab, uri)
-
+			
 			if replace_flg == False:
 				while(match):
 					line_num = doc.get_iter_at_offset(match.start()).get_line()
@@ -431,14 +459,12 @@ class AdvancedFindWindowHelper:
 						line_end_pos = end_pos
 					else:
 						line_end_pos = doc.get_iter_at_line(match_end_line_cnt).get_offset()
-					'''
-					line_end_pos = doc.get_iter_at_line(doc.get_iter_at_offset(match.end()).get_line()+1).get_offset()
-					if line_end_pos == line_start_pos or match_end_line_cnt == doc.get_line_count():
-						line_end_pos = end_pos
-					#'''
 					line_text = text[line_start_pos:line_end_pos]
 					self._results_view.append_find_result(tree_it, str(line_num+1), line_text, match.start(), match.end()-match.start(), "", line_start_pos)
-					start_pos = match.end() + 1
+					if match.start() == match.end():
+						start_pos = match.end() + 1
+					else:
+						start_pos = match.end()
 					if start_pos > end_pos:
 						break
 					match = regex.search(text, start_pos, end_pos)
@@ -451,6 +477,8 @@ class AdvancedFindWindowHelper:
 						replace_text = unicode(self.find_ui.replaceTextComboboxtext.get_active_text(), 'utf-8')
 					else:
 						replace_text = match.expand(unicode(self.find_ui.replaceTextComboboxtext.get_active_text(), 'utf-8'))
+					if match.start() == match.end():
+						break
 					replace_start_pos = match.start() + replace_offset
 					replace_end_pos = match.end() + replace_offset
 					replace_start = doc.get_iter_at_offset(replace_start_pos)
@@ -460,7 +488,7 @@ class AdvancedFindWindowHelper:
 					replace_text_len = len(replace_text)
 					results.append([replace_start_pos, replace_text_len])
 					replace_offset += replace_text_len - (match.end() - match.start())
-					start_pos = match.end() + 1
+					start_pos = match.end()
 					if start_pos > end_pos:
 						break
 					match = regex.search(text, start_pos, end_pos)
@@ -515,12 +543,15 @@ class AdvancedFindWindowHelper:
 
 		pattern_list = re.split('\s*\|\s*', file_pattern)
 		for f_pattern in pattern_list:
-			grep_cmd.append('--include=' + f_pattern)
+			if f_pattern.startswith('-'):
+				grep_cmd.append('--exclude=' + f_pattern[1:])
+			else:
+				grep_cmd.append('--include=' + f_pattern)
 
 		if find_options['REGEX_SEARCH'] == True:
-			grep_cmd = grep_cmd + ['-E', search_pattern, dir_path]
+			grep_cmd = grep_cmd + ['-E', '-e', search_pattern, dir_path]
 		else:
-			grep_cmd = grep_cmd + ['-F', search_pattern, dir_path]
+			grep_cmd = grep_cmd + ['-F', '-e', search_pattern, dir_path]
 		#print grep_cmd
 
 		p = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -563,9 +594,9 @@ class AdvancedFindWindowHelper:
 		for file_path in file_list:
 			if os.path.isfile(file_path):
 				temp_doc = Gedit.Document()
-				file_uri = 'file://' + file_path
-				temp_doc.load(Gio.file_new_for_uri(file_uri), Gedit.encoding_get_from_charset('utf-8'), 0, 0, False)
-				#temp_doc.load(Gio.file_new_for_uri(file_uri), None, 0, 0, False)
+				#file_uri = 'file://' + file_path
+				#temp_doc.load(Gio.file_new_for_uri(file_uri), Gedit.encoding_get_from_charset('utf-8'), 0, 0, False)
+				temp_doc.load(Gio.file_new_for_path(file_path), Gedit.encoding_get_from_charset('utf-8'), 0, 0, False)
 				f_temp = open(file_path, 'r')
 				try:
 					text = unicode(f_temp.read(), 'utf-8')
